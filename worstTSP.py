@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from numpy.linalg import norm
 from pyomo.environ import (
     Var,
@@ -10,14 +11,14 @@ from pyomo.environ import (
     RangeSet
 )
 
-n = 10
+n = 30
 
 # Controllare errori di discretizzazione
 X = [[np.array((i/n, j/n)) for i in range(n)]for j in range(n)]
 Z = [np.array((0.5, 0.5)), np.array((0.25, 0.5))]
 
 # Da calcolare con Analytic center
-L = [0.5, 0.2]
+L = [-0.1, 0.1]
 t = 1
 
 
@@ -27,7 +28,8 @@ def minimum_closest(x, L, Z):
 
 
 def argmin_closest(x, L, Z):
-    return np.argmin([norm(p[0]-x)-p[1] for p in zip(Z, L)])
+    out = [norm(z-x)-l for z,l in zip(Z, L)]
+    return np.argmin(out)
 
 
 def integrate_LambdaFixed_UB(nu0, nu1, L, X, Z):
@@ -104,8 +106,20 @@ def coefsFonRiProblem(Z, R, t):
     return model
 
 
+def plotRi(R,Z):
+    plt.axis([0,1,0,1])
+    for z_i, R_i in zip(Z, R):
+        x_Ri = [point[0] for point in R_i]
+        y_Ri = [point[1] for point in R_i]
+        plt.scatter(x_Ri, y_Ri)
+        plt.scatter(z_i[0], z_i[1])
+    plt.show()
+
+
+
 m1 = fixedLambdaProblem(L, X, Z, t)
 UB = integrate_LambdaFixed_UB(m1.nu0, m1.nu1, L, X, Z)
 R = createRi(L, X, Z)
 m2 = coefsFonRiProblem(Z, R, t)
 LB = integrate_onRi(m2.nu, R, Z)
+plotRi(R, Z)
