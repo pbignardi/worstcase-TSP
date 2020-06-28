@@ -11,15 +11,15 @@ from pyomo.environ import (
     RangeSet
 )
 
-n = 30
+n = 10
 
 # Controllare errori di discretizzazione
 X = [[np.array((i/n, j/n)) for i in range(n)]for j in range(n)]
 Z = [np.array((0.5, 0.5)), np.array((0.25, 0.5))]
 
 # Da calcolare con Analytic center
-L = [-0.1, 0.1]
-t = 1
+L = [0.2, 0.1]
+t = 0.2
 
 
 def minimum_closest(x, L, Z):
@@ -89,7 +89,7 @@ def coefsFonRiProblem(Z, R, t):
         return integrate_onRi(m.nu, R, Z)+m.nu[0]*t+1/len(R)*(summation)
 
     model = ConcreteModel()
-    model.I = RangeSet(0, n)
+    model.I = RangeSet(0, len(R))
     model.nu = Var(model.I, within=NonNegativeReals)
 
     # Vincoli
@@ -118,8 +118,9 @@ def plotRi(R,Z):
 
 
 m1 = fixedLambdaProblem(L, X, Z, t)
-UB = integrate_LambdaFixed_UB(m1.nu0, m1.nu1, L, X, Z)
+UB = integrate_LambdaFixed_UB(m1.nu0(), m1.nu1(), L, X, Z)
 R = createRi(L, X, Z)
 m2 = coefsFonRiProblem(Z, R, t)
-LB = integrate_onRi(m2.nu, R, Z)
+nu_value = [m2.nu[i].value for i in range(len(m2.nu))]
+LB = integrate_onRi(nu_value, R, Z)
 plotRi(R, Z)
