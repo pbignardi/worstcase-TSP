@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from numpy.linalg import norm
 from pyomo.environ import (
     Var,
@@ -8,17 +9,21 @@ from pyomo.environ import (
     ConcreteModel,
     NonNegativeReals,
     Objective,
-    RangeSet
+    RangeSet,
+    Reals,
+    Constraint,
+    minimize,
+    log,
+    summation
 )
 
-n = 10
+n = 25
 
-# Controllare errori di discretizzazione
 X = [[np.array((i/n, j/n)) for i in range(n)]for j in range(n)]
-Z = [np.array((0.5, 0.5)), np.array((0.25, 0.5))]
-
-# Da calcolare con Analytic center
-L = [0.2, 0.1]
+#Z = [np.array((0.5, 0.5)), np.array((0.25, 0.5)), np.array((0.4,0.8)),np.array((0.8,0.2)),np.array((0.2,0.2)),np.array((0.8,0.5))]
+Z = [np.array((0.5, 0.5)), np.array((0.25, 0.5)), np.array((0.4,0.8)),np.array((0.8,0.2)),np.array((0.2,0.2))]
+L = list()
+G = list()
 t = 0.2
 
 
@@ -60,7 +65,6 @@ def fixedLambdaProblem(L, X, Z, t):
 
     opt = SolverFactory('ipopt')
     opt.solve(model)
-    model.display()
     return model
 
 
@@ -83,10 +87,10 @@ def integrate_onRi(nu, R, Z):
 
 def coefsFonRiProblem(Z, R, t):
     def objfun(m):
-        summation = 0
+        s = 0
         for i in range(1, len(R)+1):
-            summation += m.nu[i]
-        return integrate_onRi(m.nu, R, Z)+m.nu[0]*t+1/len(R)*(summation)
+            s += m.nu[i]
+        return integrate_onRi(m.nu, R, Z)+m.nu[0]*t+1/len(R)*(s)
 
     model = ConcreteModel()
     model.I = RangeSet(0, len(R))
@@ -102,25 +106,77 @@ def coefsFonRiProblem(Z, R, t):
 
     opt = SolverFactory('ipopt')
     opt.solve(model)
-    model.display()
     return model
 
 
-def plotRi(R,Z):
-    plt.axis([0,1,0,1])
-    for z_i, R_i in zip(Z, R):
+def plotRi(R, Z):
+    plt.axis([0, 1, 0, 1])
+    colors = cm.rainbow(np.linspace(0, 1, len(Z)))
+    for z_i, R_i,color in zip(Z, R, colors):
         x_Ri = [point[0] for point in R_i]
         y_Ri = [point[1] for point in R_i]
-        plt.scatter(x_Ri, y_Ri)
-        plt.scatter(z_i[0], z_i[1])
+        plt.scatter(x_Ri, y_Ri, color = color)
+        plt.scatter(z_i[0], z_i[1],color = 'k')
     plt.show()
 
 
+def calcGi(R_i,nu_bar_0,nu_bar_1,L,Z):
+    sum = 0
+    for point in R_i:
+        den = 4*(nu_bar_0*minimum_closest(point, L, Z)+nu_bar_1)
+        sum += 1/(n**2*den)
+    return -sum
 
-m1 = fixedLambdaProblem(L, X, Z, t)
-UB = integrate_LambdaFixed_UB(m1.nu0(), m1.nu1(), L, X, Z)
-R = createRi(L, X, Z)
+
+def analytic_center(diamR,L,G,n):
+    # diamR è il diametro della regione R
+    # L è una lista di vettori che contiene tutte le precedenti iterazioni del
+    #   vettore lambda
+    # g è una lista di vettori che contiene tutte le precedenti istanze del
+    #   vettore g
+    
+    model = ConcreteModel()
+    model.n = RangeSet(0,n-1)
+    model.L = Var(model.n, within=Reals)
+    model.hyperplane = Constraint(expr = sum([model.L[i] for i in model.L]) == 0)
+    model.domain = ConstraintList()
+    
+    for i in model.L:
+        model.domain.add(expr = model.L[i] <= diamR)
+    for l,g in zip(L,G):
+        domain_expr = sum([g[i]*(model.L[i]) for i in model.L])
+        model.domain.add(expr = domain_expr >= sum([g[i]*(l[i]) for i in model.L]))
+         
+    obj_expr = 1
+    for l,g in zip(L,G):
+        obj_expr *= sum([g[i]*(model.L[i] - l[i]) for i in model.L])
+    for i in model.L:
+        obj_expr *= (-diamR + model.L[i])
+        
+    model.obj = Objective(expr = obj_expr,sense=maximize)
+    opt = SolverFactory('ipopt')
+    opt.solve(model)
+    return [model.L[i].value for i in model.L]
+        
+L.append(analytic_center(np.sqrt(2), L, G,len(Z)))
+l = L[-1]
+# Calcola nu_bar
+m1 = fixedLambdaProblem(l, X, Z, t)
+nu_bar_0 = m1.nu0()
+nu_bar_1 = m1.nu1()
+
+UB = integrate_LambdaFixed_UB(nu_bar_0, nu_bar_1, l, X, Z)
+R = createRi(l, X, Z)
+
+# Calcola nu_tilda
 m2 = coefsFonRiProblem(Z, R, t)
-nu_value = [m2.nu[i].value for i in range(len(m2.nu))]
-LB = integrate_onRi(nu_value, R, Z)
+
+nu_tilda_value = [m2.nu[i].value for i in m2.nu]
+LB = integrate_onRi(nu_tilda_value, R, Z)
 plotRi(R, Z)
+
+# Calcola g_i
+g = [calcGi(R_i, nu_bar_0, nu_bar_1, l, Z) for R_i in R]
+G.append(g)
+
+
