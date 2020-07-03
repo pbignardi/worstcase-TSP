@@ -106,15 +106,14 @@ def coefsFonRiProblem(Z, R, t):
     return model
 
 
-def plotRi(R,Z):
-    plt.axis([0,1,0,1])
+def plotRi(R, Z):
+    plt.axis([0, 1, 0, 1])
     for z_i, R_i in zip(Z, R):
         x_Ri = [point[0] for point in R_i]
         y_Ri = [point[1] for point in R_i]
         plt.scatter(x_Ri, y_Ri)
         plt.scatter(z_i[0], z_i[1])
     plt.show()
-
 
 
 m1 = fixedLambdaProblem(L, X, Z, t)
