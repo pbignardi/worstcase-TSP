@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from utils import *
+from ac import *
 from numpy.linalg import norm
 from pyomo.environ import (
     Var,
@@ -8,18 +11,27 @@ from pyomo.environ import (
     ConcreteModel,
     NonNegativeReals,
     Objective,
-    RangeSet
+    RangeSet,
+    Reals,
+    Constraint,
+    minimize,
+    log,
+    maximize,
+    summation
 )
 
-n = 10
+h = 100
 
-# Controllare errori di discretizzazione
-X = [[np.array((i/n, j/n)) for i in range(n)]for j in range(n)]
-Z = [np.array((0.5, 0.5)), np.array((0.25, 0.5))]
-
-# Da calcolare con Analytic center
-L = [0.2, 0.1]
-t = 0.2
+X = [[np.array((i/h, j/h)) for i in range(h)]for j in range(h)]
+#Z = [np.array((0.5, 0.5)), np.array((0.25, 0.5)), np.array((0.4,0.8)),np.array((0.8,0.2)),np.array((0.2,0.2)),np.array((0.8,0.5))]
+#Z = [np.array((0.5, 0.5)), np.array((0.25, 0.4)), np.array((0.4,0.8)),np.array((0.8,0.2))]
+#Z = [np.array((0.4,0.8)),np.array((0.8,0.2))]
+#mu1 = [0.4,0.187]
+#mu2 = [0.795,0.490]
+mu = [0.5,0.5]
+sigma = np.array([[0.07,0],[0,0.07]])
+Z = list(filter(lambda x: x[0] <= 1 and x[0] >= 0 and x[1]<= 1 and x[1]>=0, [np.random.default_rng().multivariate_normal(mu,sigma) for i in range(15)]))
+t = 100
 
 
 def minimum_closest(x, L, Z):
@@ -34,10 +46,11 @@ def argmin_closest(x, L, Z):
 
 def integrate_LambdaFixed_UB(nu0, nu1, L, X, Z):
     sum = 0
+    h = len(X)
     for row in X:
         for point in row:
             den = 4*(nu0*minimum_closest(point, L, Z)+nu1)
-            sum += 1/(n**2*den)
+            sum += 1/(h**2*den)
     return sum
 
 
@@ -53,14 +66,12 @@ def fixedLambdaProblem(L, X, Z, t):
     model.denGeqZero = ConstraintList()
     for row in X:
         for point in row:
-            print(minimum_closest(point, L, Z))
             model.denGeqZero.add(expr = model.nu0*minimum_closest(point, L, Z)+model.nu1 >= 0)
 
     model.obj = Objective(rule=objfun)
 
     opt = SolverFactory('ipopt')
     opt.solve(model)
-    model.display()
     return model
 
 
@@ -72,21 +83,21 @@ def createRi(L, X, Z):
     return R
 
 
-def integrate_onRi(nu, R, Z):
+def integrate_onRi(nu, R, Z,h):
     sum = 0
     for i in range(len(R)):
         for point in R[i]:
             den = 4*(nu[0]*norm(point-Z[i])+nu[i])
-            sum += 1/(den*n**2)
+            sum += 1/(den*h**2)
     return sum
 
 
-def coefsFonRiProblem(Z, R, t):
+def coefsFonRiProblem(Z, R, t,h):
     def objfun(m):
-        summation = 0
+        s = 0
         for i in range(1, len(R)+1):
-            summation += m.nu[i]
-        return integrate_onRi(m.nu, R, Z)+m.nu[0]*t+1/len(R)*(summation)
+            s += m.nu[i]
+        return integrate_onRi(m.nu, R, Z,h)+m.nu[0]*t+1/len(R)*(s)
 
     model = ConcreteModel()
     model.I = RangeSet(0, len(R))
@@ -102,24 +113,101 @@ def coefsFonRiProblem(Z, R, t):
 
     opt = SolverFactory('ipopt')
     opt.solve(model)
-    model.display()
     return model
 
 
 def plotRi(R, Z):
+<<<<<<< HEAD
     plt.axis([0, 1, 0, 1])
     for z_i, R_i in zip(Z, R):
+=======
+    Markers=["x","s", "o", "*"]
+    plt.axis([0, 1, 0, 1])
+    colors = cm.rainbow(np.linspace(0, 1, len(Z)))
+    i = 0
+    for z_i, R_i,color in zip(Z, R, colors):
+>>>>>>> b73f911063992c6bac8bb807f5222278ec4aef45
         x_Ri = [point[0] for point in R_i]
         y_Ri = [point[1] for point in R_i]
-        plt.scatter(x_Ri, y_Ri)
-        plt.scatter(z_i[0], z_i[1])
+        plt.scatter(x_Ri, y_Ri, color = color,s = 20*8/len(Z),alpha=0.08)
+        plt.scatter(z_i[0], z_i[1],color = 'k',marker='x')
+        i += 1
     plt.show()
 
 
+<<<<<<< HEAD
+=======
+def calcGi(R_i,nu_bar_0,nu_bar_1,L,Z,h):
+    sum = 0
+    for point in R_i:
+        den = 4*(nu_bar_0*minimum_closest(point, L, Z)+nu_bar_1)
+        sum += 1/(h**2*den)
+    return -sum
+
+
+def analytic_center_brutto(A,b,n):
+    # diamR è il diametro della regione R
+    # L è una lista di vettori che contiene tutte le precedenti iterazioni del
+    #   vettore lambda
+    # g è una lista di vettori che contiene tutte le precedenti istanze del
+    #   vettore g
+    
+    model = ConcreteModel()
+    model.n = RangeSet(0,n-2)
+    model.L = Var(model.n, within=Reals)
+    model.domain = ConstraintList()
+    
+    for a_i, b_i in zip(A,b):
+        model.domain.add(expr = sum([a_i[j]*model.L[j] for j in model.L]) <= b_i[0])    
+         
+    obj_expr = 0
+    for a_i, b_i in zip(A,b):
+        obj_expr += -log(b_i[0] - sum([a_i[j]*model.L[j] for j in model.L]))
+        
+    model.obj = Objective(expr = obj_expr,sense=minimize)
+    opt = SolverFactory('ipopt')
+    opt.solve(model)
+    
+    return [model.L[i].value for i in model.L]
+  
+
+#%%
+#L.append(analytic_center(np.sqrt(2), L, G,len(Z)))
+n = len(Z)
+A,b = makeConstraints(np.sqrt(2),n)
+
+UB = 1e10
+LB = 1e-10
+#while UB-LB > 1e-2:
+# Calcola nu_bar
+#%%
+
+#b = b.reshape(1,-1)[0]
+L = analytic_center_brutto(getAtilde(A),b,n)
+#L = L.tolist()
+L.append(-sum(L));
+>>>>>>> b73f911063992c6bac8bb807f5222278ec4aef45
 m1 = fixedLambdaProblem(L, X, Z, t)
-UB = integrate_LambdaFixed_UB(m1.nu0(), m1.nu1(), L, X, Z)
+nu_bar_0 = m1.nu0()
+nu_bar_1 = m1.nu1()
+
+UB = integrate_LambdaFixed_UB(nu_bar_0, nu_bar_1, L, X, Z)
 R = createRi(L, X, Z)
-m2 = coefsFonRiProblem(Z, R, t)
-nu_value = [m2.nu[i].value for i in range(len(m2.nu))]
-LB = integrate_onRi(nu_value, R, Z)
+
+# Calcola nu_tilda
+m2 = coefsFonRiProblem(Z, R, t,h)
+
+nu_tilda_value = [m2.nu[i].value for i in m2.nu]
+LB = integrate_onRi(nu_tilda_value, R, Z,h)
 plotRi(R, Z)
+
+# Calcola g_i
+g = [calcGi(R_i, nu_bar_0, nu_bar_1, L, Z, h) for R_i in R]
+
+
+# Analytic center
+#b = b.reshape(-1,1)
+A,b = Add_constraints(A, b, L, g)
+#A,b = Prune_constraints(A, b, L)
+
+
