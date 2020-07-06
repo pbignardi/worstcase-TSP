@@ -27,8 +27,8 @@ def evalHessian(hessian):
         for j,expression in enumerate(row):
             H[i][j] = evaluate_expression(expression)
     return H
-   
- 
+
+
 def makeConstraints(diamR,n):
     b = diamR*np.ones((n,1))
     # Vincoli associati a \lambda_i \leq diamR
@@ -47,19 +47,27 @@ def Prune_constraints(A,b,optimum):
     eta = []
     H = np.zeros((n,n))
     for i in range(len(A)):
-        H += (b[i]-np.dot(A[i],optimum))**(-2)*(A[i]*A[i].reshape(-1,1))    
-    
+        H += (b[i]-np.dot(A[i],optimum))**(-2)*(A[i]*A[i].reshape(-1,1))
+
     for i in range(len(A)):
         eta.append((b[i]-np.dot(A[i],optimum))/(np.sqrt(np.dot(A[i],np.linalg.solve(H,A[i])))))
-        
+
     # Tolgo i vincoli che hanno eta > m
     to_remove_index = [eta.index(value) for value in eta if value >= len(A)]
     A = np.delete(A, to_remove_index, axis = 0)
     b = np.delete(b, to_remove_index, axis = 0)
-    
+
     while len(A) >= 4*n:
         index = np.argmax(eta)
         A = np.delete(A, (index), axis = 0)
         b = np.delete(b, (index), axis = 0)
     return A,b
 
+
+def CostMatrix(X):
+    n = len(X)
+    c = np.zeros((n, n))
+    for i, x_i in enumerate(X):
+        for j, x_j in enumerate(X):
+            c[i][j] = np.linalg.norm(x_i-x_j)
+    return c

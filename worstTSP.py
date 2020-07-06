@@ -118,7 +118,7 @@ def coefsFonRiProblem(Z, R, t,h):
     model = ConcreteModel()
     if len(R) != len(Z):
         raise Exception()
-        
+
     model.I = RangeSet(0, len(R))
     model.nu = Var(model.I, within=NonNegativeReals)
 
@@ -136,11 +136,8 @@ def coefsFonRiProblem(Z, R, t,h):
 
 
 def plotRi(R, Z):
-    Markers=["x","s", "o", "*"]
     plt.axis([0, 1, 0, 1])
-    colors = cm.rainbow(np.linspace(0, 1, len(Z)))
-    i = 0
-    for z_i, R_i,color in zip(Z, R, colors):
+    for z_i, R_i in zip(Z, R):
         x_Ri = [point[0] for point in R_i]
         y_Ri = [point[1] for point in R_i]
         plt.scatter(x_Ri, y_Ri, color = color,s = 20*8/len(Z),alpha=0.08)
@@ -172,26 +169,24 @@ while (UB-LB)/UB > 5/100 and iterazioni < maxIt:
     m1 = fixedLambdaProblem(L, X, Z, t)
     nu_bar_0 = m1.nu0()
     nu_bar_1 = m1.nu1()
-    
+
     UB = calculateUB(nu_bar_0,nu_bar_1,L,X,Z)
     R = createRi(L, X, Z)
-    
+
     # Calcola nu_tilda
     m2 = coefsFonRiProblem(Z, R, t, h)
-    
+
     nu_tilda_value = [m2.nu[i].value for i in m2.nu]
     LB = calculateLB(nu_tilda_value, R, Z, h)
     plotRi(R, Z)
-    
+
     # Calcola g_i
     g = [calcGi(R_i, nu_bar_0, nu_bar_1, L, Z, h) for R_i in R]
-    
-    
+
+
     # Analytic center
     A,b = Add_constraints(A, b, L, g)
     #A,b = Prune_constraints(A, b, L)
     print("Lower bound: ",LB)
     print("Upper bound: ",UB)
     iterazioni += 1
-    
-
