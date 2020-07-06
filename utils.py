@@ -64,10 +64,10 @@ def Prune_constraints(A,b,optimum):
     return A,b
 
 
-def calculateCostMatrix(X):
+def CostMatrix(X):
     n = len(X)
-    c = np.array((n, n))
+    c = np.zeros((n, n))
     for i, x_i in enumerate(X):
         for j, x_j in enumerate(X):
-            c[i, j] = np.norm(x_i-x_j)
+            c[i][j] = np.linalg.norm(x_i-x_j)
     return c
