@@ -21,11 +21,11 @@ def analytic_center(A,b):
     model.domain = ConstraintList()
     
     for a_i, b_i in zip(A,b):
-        model.domain.add(expr = sum([a_i[j]*model.L[j] for j in model.L]) <= b_i[0])    
+        model.domain.add(expr = sum([a_i[j]*model.L[j] for j in model.L]) <= b_i[0] - 1e-10)    
          
     obj_expr = 0
     for a_i, b_i in zip(A,b):
-        obj_expr += -log(b_i[0] - sum([a_i[j]*model.L[j] for j in model.L]))
+        obj_expr += -log(1e-13 + b_i[0] - sum([a_i[j]*model.L[j] for j in model.L]))
         
     model.obj = Objective(expr = obj_expr,sense=minimize)
     opt = SolverFactory('ipopt')

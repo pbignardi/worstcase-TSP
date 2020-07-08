@@ -47,19 +47,5 @@ def tsp(X):
     fig = plt.figure(figsize=(10,8))
     ax1 = fig.add_subplot(111)
 
-    # Plot of solution
-    for i, x_i in enumerate(X):
-        for j, x_j in enumerate(X):
-            if model.x[i+1,j+1].value == 1:
-                x_values = [x_i[0], x_j[0]]
-                y_values = [x_i[1], x_j[1]]
-                ax1.plot(x_values,y_values,color='b')
-
-    for x_i in X:
-        ax1.scatter(x_i[0],x_i[1],marker='o',c='k')
-
-    plt.show()
     return model.x
 
-X = [np.array((random.random()*2.0, random.random()*2.0)) for _ in range(20)]
-tsp(X)

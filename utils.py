@@ -6,6 +6,7 @@ Created on Thu Jul  2 09:30:49 2020
 """
 from pyomo.core.base.symbolic import differentiate
 from pyomo.core.expr.current import identify_variables, evaluate_expression
+import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -71,3 +72,28 @@ def CostMatrix(X):
         for j, x_j in enumerate(X):
             c[i][j] = np.linalg.norm(x_i-x_j)
     return c
+
+def scatterPoints(X,m='o'):
+    fig = plt.figure(figsize=(10,8))
+    ax1 = fig.add_subplot(111)
+
+    # Plot of solution
+    for x_i in X:
+        ax1.scatter(x_i[0],x_i[1],marker=m,c='k')
+        
+    plt.show()
+    return fig
+
+def plot_tsp_sol(X,x):
+    # Plot of solution
+    for i, x_i in enumerate(X):
+        for j, x_j in enumerate(X):
+            if x[i+1,j+1].value == 1:
+                x_values = [x_i[0], x_j[0]]
+                y_values = [x_i[1], x_j[1]]
+                ax1.plot(x_values,y_values,color='b')
+
+    for x_i in X:
+        ax1.scatter(x_i[0],x_i[1],marker='o',c='k')
+
+    plt.show()
