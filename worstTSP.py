@@ -148,20 +148,23 @@ def solve(Z,X,t,h,maxIt=100):
     A,b = makeConstraints(np.sqrt(2),n)
     UB = 1e10
     LB = 1e-10
+    list_LB = []
+    list_UB = []
     iterazioni = 1
     try:
-        while (UB-LB)/UB > 1/100 and iterazioni < maxIt:
+        while (UB-LB)/LB > 1/100 and iterazioni < maxIt:
             print("------- Iterazione ", iterazioni, "-------")
             #b = b.reshape(1,-1)[0]
             
             L = analytic_center(getAtilde(A),b)
             L.append(-sum(L))
-            
+            print(L)
             m1 = fixedLambdaProblem(L, X, Z, t)
             nu_bar_0 = m1.nu0()
             nu_bar_1 = m1.nu1()
         
             UB = calculateUB(nu_bar_0,nu_bar_1,L,X,Z)
+            print(nu_bar_0,nu_bar_1)
             R = createRi(L, X, Z)
         
             # Calcola nu_tilda
@@ -180,9 +183,11 @@ def solve(Z,X,t,h,maxIt=100):
             A,b = Prune_constraints(A, b, L)
             print("Lower bound: ",LB)
             print("Upper bound: ",UB)
+            list_LB.append(LB)
+            list_UB.append(UB)
             iterazioni += 1
     except ValueError:
         print("\n")
         print("### Obtained infeasible region ###")
     finally:
-        return nu_tilda_value,L
+        return nu_tilda_value,L,list_UB,list_LB

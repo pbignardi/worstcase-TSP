@@ -14,8 +14,6 @@ def tsp(X):
     model.M = RangeSet(n)
     model.U = RangeSet(2,n)
 
-
-
     model.x = Var(model.N,model.M,within=Binary)
     model.u = Var(model.N,within=NonNegativeIntegers,bounds=(0,n-1))
     model.c = Param(model.N, model.M,initialize=lambda model, i, j: cost_matrix[i-1][j-1])
@@ -43,9 +41,5 @@ def tsp(X):
     opt = SolverFactory('gurobi')
     opt.solve(model)
 
-
-    fig = plt.figure(figsize=(10,8))
-    ax1 = fig.add_subplot(111)
-
-    return model.x
+    return model
 
